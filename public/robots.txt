@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+# Review build: remove Disallow and noindex only for approved public launch.
+Sitemap: https://cutclear.site/sitemap.xml
