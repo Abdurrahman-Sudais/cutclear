@@ -206,11 +206,24 @@ try {
   form.elements.company.value = "Sample Company";
   form.elements.challenge.value = "Check campaign dates";
   assert.ok(form.checkValidity());
-  await act(() =>
-    form.dispatchEvent(
-      new w.Event("submit", { bubbles: true, cancelable: true }),
-    ),
+  const submitContact = () =>
+    act(() =>
+      form.dispatchEvent(
+        new w.Event("submit", { bubbles: true, cancelable: true }),
+      ),
+    );
+  await submitContact();
+  assert.match(
+    document.querySelector("#contact .form-error").textContent,
+    /agree/,
   );
+  assert.doesNotMatch(
+    document.querySelector("#contact [role=status]").textContent,
+    /nothing has been submitted/,
+  );
+  form.elements.consent.checked = true;
+  await submitContact();
+  assert.equal(document.querySelector("#contact .form-error").textContent, "");
   assert.match(
     document.querySelector("#contact [role=status]").textContent,
     /nothing has been submitted/,
