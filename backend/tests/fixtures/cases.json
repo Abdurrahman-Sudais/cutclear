@@ -1,0 +1,30 @@
+{
+  "_comment": "Shared rights-check fixtures. src/app/engine.test.js (prototype) and backend/tests/test_lambdas.py (Lambda) must both produce these statuses and finding kinds.",
+  "plan": { "start": "2027-01-01", "end": "2027-12-31", "territories": ["United Kingdom"], "channels": ["Online", "Television"], "paidMedia": false },
+  "agreement": { "ref": "A-1", "confirmed": true, "territories": ["United Kingdom"], "channels": ["Online", "Television"], "start": "2027-01-01", "end": "2027-12-31", "maxSeconds": null, "paidMedia": null, "creditRequired": null, "excerpt": "" },
+  "cases": [
+    { "name": "exact match", "status": "No gap detected", "kinds": [] },
+    { "name": "no agreement", "noAgreement": true, "status": "Missing evidence", "kinds": ["Missing evidence"] },
+    { "name": "unconfirmed terms stop further checks", "agreement": { "confirmed": false, "channels": [] }, "status": "Unconfirmed terms", "kinds": ["Unconfirmed terms"] },
+    { "name": "online only", "agreement": { "channels": ["Online"] }, "status": "Gaps found", "kinds": ["Channel gap"] },
+    { "name": "region covers child territory", "agreement": { "territories": ["Europe"] }, "plan": { "territories": ["United Kingdom", "Ireland"] }, "status": "No gap detected", "kinds": [] },
+    { "name": "worldwide covers everything", "agreement": { "territories": ["Worldwide"] }, "plan": { "territories": ["Japan", "Canada"] }, "status": "No gap detected", "kinds": [] },
+    { "name": "child does not cover sibling", "agreement": { "territories": ["United Kingdom"] }, "plan": { "territories": ["United Kingdom", "Ireland"] }, "status": "Gaps found", "kinds": ["Territory gap"] },
+    { "name": "ends on the release end date", "agreement": { "end": "2027-12-31" }, "status": "No gap detected", "kinds": [] },
+    { "name": "ends a day early", "agreement": { "end": "2027-12-30" }, "status": "Gaps found", "kinds": ["Date gap"] },
+    { "name": "starts late", "agreement": { "start": "2027-02-01" }, "status": "Gaps found", "kinds": ["Starts late"] },
+    { "name": "duration exactly at limit", "agreement": { "maxSeconds": 15 }, "usedSeconds": 15, "status": "No gap detected", "kinds": [] },
+    { "name": "duration over limit", "agreement": { "maxSeconds": 15 }, "usedSeconds": 22, "status": "Gaps found", "kinds": ["Duration gap"] },
+    { "name": "paid media excluded and planned", "agreement": { "paidMedia": false }, "plan": { "paidMedia": true }, "status": "Gaps found", "kinds": ["Paid media not permitted"] },
+    { "name": "paid media unstated is not a gap", "agreement": { "paidMedia": null }, "plan": { "paidMedia": true }, "status": "No gap detected", "kinds": [] },
+    { "name": "credit missing is an obligation, not a gap", "agreement": { "creditRequired": "Music by L. Ray" }, "credits": ["Directed by R. Osei"], "status": "Obligation open", "kinds": ["Credit obligation open"] },
+    { "name": "credit present ignoring case and punctuation", "agreement": { "creditRequired": "Music by L. Ray" }, "credits": ["music by l ray"], "status": "No gap detected", "kinds": [] },
+    { "name": "several gaps at once", "agreement": { "channels": ["Online"], "end": "2027-06-30", "territories": ["Ireland"] }, "status": "Gaps found", "kinds": ["Territory gap", "Channel gap", "Date gap"] }
+  ],
+  "suggestions": [
+    { "excerpt": "Licensed in Europe, excluding paid advertising.", "agreement": {}, "labels": ["Excludes paid media"] },
+    { "excerpt": "Licensed in Europe, excluding paid advertising.", "agreement": { "paidMedia": false }, "labels": [] },
+    { "excerpt": "Online use only; not for broadcast.", "agreement": { "channels": ["Online", "Television"] }, "labels": ["Excludes television"] },
+    { "excerpt": "Online use only; not for broadcast.", "agreement": { "channels": ["Online"] }, "labels": [] }
+  ]
+}

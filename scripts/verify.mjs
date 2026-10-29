@@ -6,6 +6,7 @@ const window = new Window({ url: "https://cutclear.site" });
 const doc = window.document;
 for (const path of [
   "index.html",
+  "app/index.html",
   "privacy/index.html",
   "terms/index.html",
   "brand/index.html",
@@ -66,6 +67,6 @@ assert.match(
   /https:\/\/cutclear.site\/brand/,
 );
 console.log(
-  "PASS: five prerendered documents, essential content, leadership, internal anchor targets, metadata, all route image/download files, favicon files, sitemap, review robots; single-document preview and bundled JS syntax.",
+  "PASS: six prerendered documents, essential content, leadership, internal anchor targets, metadata, all route image/download files, favicon files, sitemap, review robots; single-document preview and bundled JS syntax.",
 );
 window.happyDOM.abort();

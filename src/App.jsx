@@ -16,6 +16,16 @@ import {
   Layers,
 } from "lucide-react";
 import { assets, initialPlan, gaps, report } from "./permissions";
+import Prototype from "./app/Prototype.jsx";
+import {
+  PrototypeCta,
+  Benefits,
+  UseCases,
+  Safeguards,
+  Plans,
+  Faq,
+} from "./Sections.jsx";
+import { hubspotConfig, validateLead, leadPayload } from "./lead.js";
 const email = "damilola@cutclear.site";
 function Logo() {
   return (
@@ -35,7 +45,9 @@ function Logo() {
 const links = [
   ["Product", "/#product"],
   ["How it works", "/#process"],
-  ["Architecture", "/#architecture"],
+  ["Safeguards", "/#safeguards"],
+  ["Pricing", "/#pricing"],
+  ["FAQ", "/#faq"],
   ["Team", "/#leadership"],
 ];
 function Header() {
@@ -53,8 +65,8 @@ function Header() {
           Contact
         </a>
       </nav>
-      <a className="header-cta" href="/#demo">
-        Explore the demo <ArrowUpRight size={16} />
+      <a className="header-cta" href="/app">
+        Open the prototype <ArrowUpRight size={16} />
       </a>
       <button
         className="menu icon"
@@ -82,6 +94,8 @@ function Footer() {
         ))}
       </div>
       <div>
+        <a href="/app">Prototype</a>
+        <a href="/#architecture">Architecture</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
         <a href="/brand">Brand assets</a>
@@ -137,8 +151,11 @@ function Hero() {
             See permission gaps, inspect the source, and keep the review moving.
           </p>
           <div className="actions">
-            <a className="button" href="#demo">
-              Explore a sample production <ArrowUpRight size={18} />
+            <a className="button" href="/app">
+              Try the interactive prototype <ArrowUpRight size={18} />
+            </a>
+            <a className="text-link" href="#demo">
+              Explore a sample production <ArrowRight size={16} />
             </a>
             <a className="text-link" href="#contact">
               Request early access <ArrowRight size={16} />
@@ -645,18 +662,77 @@ const services = [
   ],
 ];
 function Contact() {
+  const hubspot = hubspotConfig();
   const [feedback, setFeedback] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
   const form = useRef();
-  function draft() {
+  function fields() {
     const d = new FormData(form.current);
-    return `Name: ${d.get("name")}\nWork email: ${d.get("email")}\nCompany: ${d.get("company")}\nProduction type: ${d.get("type")}\n\nRights-review challenge:\n${d.get("challenge")}`;
+    const v = (k) => String(d.get(k) || "");
+    return {
+      name: v("name"),
+      email: v("email"),
+      company: v("company"),
+      role: v("role"),
+      type: v("type"),
+      volume: v("volume"),
+      challenge: v("challenge"),
+      consent: !!d.get("consent"),
+      marketing: !!d.get("marketing"),
+      website: v("website"),
+    };
   }
-  function submit(e) {
+  function draft() {
+    const f = fields();
+    return `Name: ${f.name}\nWork email: ${f.email}\nCompany: ${f.company}\nRole: ${f.role}\nProduction type: ${f.type}\nReleases per month: ${f.volume}\n\nRights-review challenge:\n${f.challenge}`;
+  }
+  async function submit(e) {
     e.preventDefault();
-    location.href = `mailto:${email}?subject=${encodeURIComponent("Cutclear early access & pricing")}&body=${encodeURIComponent(draft())}`;
-    setFeedback(
-      "Email draft requested. Send it in your email application; nothing has been submitted here.",
-    );
+    const f = fields();
+    setError("");
+    if (f.website) return; // honeypot: bots fill hidden fields
+    const problem = validateLead(f);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (!hubspot) {
+      location.href = `mailto:${email}?subject=${encodeURIComponent("Cutclear early access & pricing")}&body=${encodeURIComponent(draft())}`;
+      setFeedback(
+        "Email draft requested. Send it in your email application; nothing has been submitted here.",
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await fetch(
+        `https://api.hsforms.com/submissions/v3/integration/submit/${encodeURIComponent(hubspot.portalId)}/${encodeURIComponent(hubspot.formGuid)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            leadPayload(
+              f,
+              {
+                pageUri: location.href.split("#")[0],
+                pageName: document.title,
+              },
+              hubspot,
+            ),
+          ),
+        },
+      );
+      if (!r.ok) throw new Error(String(r.status));
+      setSent(true);
+    } catch {
+      setError(
+        `Sorry, that could not be sent. Please try again, or email ${email}.`,
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   async function copy() {
     if (!form.current.reportValidity()) return;
@@ -670,7 +746,7 @@ function Contact() {
   return (
     <section id="contact" className="contact">
       <div>
-        <div className="eyebrow">06 / EARLY ACCESS</div>
+        <div className="eyebrow">11 / EARLY ACCESS</div>
         <h2>
           Your next release.
           <br />
@@ -685,62 +761,126 @@ function Contact() {
           {email} <ArrowUpRight size={20} />
         </a>
         <p className="muted">
-          The form opens an email draft. You send it through your email
-          application.
+          {hubspot
+            ? "Submitting sends your details to Cutclear’s customer-relationship system so we can reply. See the privacy notes."
+            : "The form opens an email draft. You send it through your email application."}
         </p>
       </div>
-      <form ref={form} onSubmit={submit}>
-        <div className="form-grid">
+      {sent ? (
+        <div className="contact-done" role="status">
+          <h3>Thank you.</h3>
+          <p>
+            Your request has been received. We will reply by email to arrange a
+            walkthrough.
+          </p>
+        </div>
+      ) : (
+        <form ref={form} onSubmit={submit} noValidate>
+          <div className="form-grid">
+            <label>
+              Name
+              <input name="name" autoComplete="name" required maxLength={120} />
+            </label>
+            <label>
+              Work email
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                maxLength={200}
+              />
+            </label>
+            <label>
+              Company
+              <input
+                name="company"
+                autoComplete="organization"
+                required
+                maxLength={160}
+              />
+            </label>
+            <label>
+              Production type
+              <select name="type">
+                <option>Advertising / branded content</option>
+                <option>Studio production</option>
+                <option>Distribution</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label>
+              Your role
+              <input
+                name="role"
+                autoComplete="organization-title"
+                maxLength={100}
+                placeholder="Producer, rights manager…"
+              />
+            </label>
+            <label>
+              Releases per month
+              <select name="volume">
+                <option value="">Choose…</option>
+                <option>Under 5</option>
+                <option>5–20</option>
+                <option>20–50</option>
+                <option>50+</option>
+              </select>
+            </label>
+          </div>
           <label>
-            Name
-            <input name="name" autoComplete="name" required maxLength={120} />
-          </label>
-          <label>
-            Work email
-            <input
-              name="email"
-              type="email"
-              autoComplete="email"
+            What makes rights review difficult today?
+            <textarea
+              name="challenge"
               required
-              maxLength={200}
+              maxLength={3000}
+              placeholder="Please do not paste agreements or confidential production details."
             />
           </label>
-          <label>
-            Company
-            <input
-              name="company"
-              autoComplete="organization"
-              required
-              maxLength={160}
-            />
+          <div className="hp" aria-hidden="true">
+            <label>
+              Leave this field empty
+              <input name="website" tabIndex={-1} autoComplete="off" />
+            </label>
+          </div>
+          <label className="consent">
+            <input type="checkbox" name="consent" />{" "}
+            <span>
+              I agree that Cutclear may use these details to reply to this
+              request.
+            </span>
           </label>
-          <label>
-            Production type
-            <select name="type">
-              <option>Advertising / branded content</option>
-              <option>Studio production</option>
-              <option>Distribution</option>
-              <option>Other</option>
-            </select>
+          <label className="consent">
+            <input type="checkbox" name="marketing" />{" "}
+            <span>Also send me occasional product updates (optional).</span>
           </label>
-        </div>
-        <label>
-          What makes rights review difficult today?
-          <textarea name="challenge" required maxLength={3000} />
-        </label>
-        <div className="actions">
-          <button type="submit">
-            Open email draft <ArrowUpRight size={16} />
-          </button>
-          <button className="secondary" type="button" onClick={copy}>
-            Copy message
-          </button>
-        </div>
-        <p role="status">{feedback}</p>
-        {feedback.startsWith("Clipboard") && (
-          <textarea aria-label="Message to copy" readOnly value={draft()} />
-        )}
-      </form>
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+          <div className="actions">
+            {hubspot ? (
+              <button type="submit" disabled={busy}>
+                {busy ? "Sending…" : "Request early access"}{" "}
+                <ArrowUpRight size={16} />
+              </button>
+            ) : (
+              <>
+                <button type="submit">
+                  Open email draft <ArrowUpRight size={16} />
+                </button>
+                <button className="secondary" type="button" onClick={copy}>
+                  Copy message
+                </button>
+              </>
+            )}
+          </div>
+          <p role="status">{feedback}</p>
+          {feedback.startsWith("Clipboard") && (
+            <textarea aria-label="Message to copy" readOnly value={draft()} />
+          )}
+        </form>
+      )}
     </section>
   );
 }
@@ -817,6 +957,8 @@ function Home() {
         </div>
       </section>
       <Demo />
+      <PrototypeCta />
+      <Benefits />
       <section className="audience">
         <div className="eyebrow">BUILT AROUND THE HANDOVER</div>
         <h2>
@@ -847,10 +989,13 @@ function Home() {
           ))}
         </div>
       </section>
+      <UseCases />
+      <Safeguards />
+      <Plans />
       <section id="architecture" className="architecture">
         <div className="section-heading">
           <div>
-            <div className="eyebrow">04 / THE PROPOSED FOUNDATION</div>
+            <div className="eyebrow">09 / THE PROPOSED FOUNDATION</div>
             <h2>
               Architecture on
               <br />
@@ -882,7 +1027,7 @@ function Home() {
         </p>
       </section>
       <section id="leadership" className="leadership">
-        <div className="eyebrow">05 / LEADERSHIP</div>
+        <div className="eyebrow">10 / LEADERSHIP</div>
         <h2>
           The People
           <br />
@@ -905,6 +1050,7 @@ function Home() {
         </div>
       </section>
       <Contact />
+      <Faq />
     </>
   );
 }
@@ -989,13 +1135,27 @@ function Legal({ type }) {
             until reset or reload. This website does not send those entries to a
             Cutclear server or use analytics or tracking cookies.
           </p>
+          <h2>Interactive prototype</h2>
+          <p>
+            The prototype at /app also uses fictional data. So that your changes
+            survive a reload, it saves its state in your browser’s local storage
+            under the key cutclear-prototype-v1. That data never leaves your
+            device. “Reset demo data” in the prototype, or clearing site data in
+            your browser, removes it.
+          </p>
           <h2>Exports and contact</h2>
           <p>
             Exports generate a file on your device. Opening an email draft
             passes your entered form information to your chosen email
             application; you must send it yourself. Copy message uses your
             browser clipboard permission. Email sent by you is handled by your
-            email provider and the recipient’s provider.
+            email provider and the recipient’s provider. If the operator later
+            connects the form to a customer-relationship service (proposed:
+            HubSpot), submitting it sends the fields you enter, your consent
+            choices and the page address to that service so Cutclear can reply;
+            updates are sent only if you tick the optional box. This notice must
+            be updated with the confirmed service and retention before that is
+            switched on.
           </p>
           <h2>Information you choose to share</h2>
           <p>
@@ -1042,6 +1202,7 @@ function Legal({ type }) {
 }
 export default function App({ path = "/" }) {
   const route = path.replace(/\/$/, "") || "/";
+  if (route === "/app") return <Prototype />;
   return (
     <>
       <Header />

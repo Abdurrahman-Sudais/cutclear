@@ -10,7 +10,7 @@ const server = await createServer({
 try {
   const { default: App } = await server.ssrLoadModule("/src/App.jsx");
   const base = await readFile("dist/index.html", "utf8");
-  for (const route of ["/", "/privacy", "/terms", "/brand", "/404"]) {
+  for (const route of ["/", "/app", "/privacy", "/terms", "/brand", "/404"]) {
     let html = base.replace(
       '<div id="root"></div>',
       () =>
@@ -18,6 +18,7 @@ try {
     );
     if (route !== "/") {
       const name = {
+        "/app": "Interactive prototype",
         "/privacy": "Privacy",
         "/terms": "Terms of use",
         "/brand": "Brand assets",
@@ -108,7 +109,7 @@ try {
   await writeFile(
     "dist/sitemap.xml",
     '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
-      ["/", "/privacy", "/terms", "/brand"]
+      ["/", "/app", "/privacy", "/terms", "/brand"]
         .map((p) => `<url><loc>https://cutclear.site${p}</loc></url>`)
         .join("") +
       "</urlset>",
@@ -116,7 +117,7 @@ try {
   await copyFile("dist/robots.txt", "public/robots.txt");
   await copyFile("dist/sitemap.xml", "public/sitemap.xml");
   console.log(
-    "Prerendered home, legal, brand and 404. Created standalone home preview.",
+    "Prerendered home, prototype, legal, brand and 404. Created standalone home preview.",
   );
 } finally {
   await server.close();
